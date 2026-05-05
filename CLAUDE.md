@@ -43,8 +43,8 @@ devmetrics/
 
 ## What's Next
 - [x] Auth routes: POST /auth/register and POST /auth/login
-- [ ] Auth middleware (verify JWT from cookie)
-- [ ] GitHub routes: GET /github/profile and GET /github/repos
+- [x] Auth middleware (verify JWT from cookie)
+- [x] GitHub routes: POST /github/connect, GET /github/profile, GET /github/repos
 - [ ] Frontend: login/register pages
 - [ ] Frontend: protected dashboard page
 - [ ] Frontend: repo list and stats display

@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRouter from './routes/auth';
+import githubRouter from './routes/github';
 import { requireAuth, AuthRequest } from './middleware/auth';
 
 const app = express();
@@ -17,6 +18,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/auth', authRouter);
+app.use('/github', githubRouter);
 
 app.get('/me', requireAuth, (req: AuthRequest, res) => {
   res.json({ userId: req.userId });
