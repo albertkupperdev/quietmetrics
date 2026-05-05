@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRouter from './routes/auth';
+import { requireAuth, AuthRequest } from './middleware/auth';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,6 +17,10 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/auth', authRouter);
+
+app.get('/me', requireAuth, (req: AuthRequest, res) => {
+  res.json({ userId: req.userId });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
