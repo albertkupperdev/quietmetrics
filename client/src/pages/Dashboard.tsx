@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import api from '../api';
 import StatsBar from '../components/StatsBar';
 import LanguageChart from '../components/LanguageChart';
 import TopReposChart from '../components/TopReposChart';
 import { ProfileSkeleton, StatsSkeleton, RepoSkeleton } from '../components/Skeleton';
+
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 interface GitHubProfile {
   login: string;
@@ -34,25 +37,25 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<GitHubProfile | null>(null);
   const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'updated' | 'stars' | 'forks'>('updated');
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [profileRes, reposRes] = await Promise.all([
-          api.get('/github/profile'),
-          api.get('/github/repos'),
-        ]);
-        setProfile(profileRes.data);
-        setRepos(reposRes.data);
-      } catch {
-        navigate('/');
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    const socket = io(API_URL, { withCredentials: true });
+
+    socket.on('stats:update', (data: { profile: GitHubProfile; repos: Repo[] }) => {
+      setProfile(data.profile);
+      setRepos(data.repos);
+      setLastUpdated(new Date());
+      setLoading(false);
+    });
+
+    socket.on('connect_error', () => {
+      navigate('/');
+    });
+
+    return () => { socket.disconnect(); };
   }, [navigate]);
 
   async function handleLogout() {
@@ -72,7 +75,14 @@ export default function Dashboard() {
     <div className="dashboard">
       <header className="dashboard-header">
         <h1>DevMetrics</h1>
-        <button onClick={handleLogout} className="logout-btn">Log out</button>
+        <div className="header-right">
+          {lastUpdated && (
+            <span className="last-updated">
+              Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <button onClick={handleLogout} className="logout-btn">Log out</button>
+        </div>
       </header>
 
       {loading ? (
