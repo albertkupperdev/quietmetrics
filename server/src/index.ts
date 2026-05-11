@@ -26,7 +26,6 @@ const io = new Server(server, {
   cors: { origin: allowedOrigin, credentials: true },
 });
 
-// Verify JWT from cookie on every WebSocket connection
 io.use((socket, next) => {
   const cookie = socket.handshake.headers.cookie ?? '';
   const token = cookie.split(';').find(c => c.trim().startsWith('token='))?.split('=')[1];
@@ -56,12 +55,9 @@ io.on('connection', (socket) => {
         getActivityMetrics(userId),
       ]);
       socket.emit('stats:update', { profile, repos, activity });
-    } catch {
-      // User token may have expired — don't crash the server
-    }
+    } catch {}
   }
 
-  // Push immediately on connect, then every 30 seconds
   pushStats();
   const interval = setInterval(pushStats, 30_000);
   socket.on('disconnect', () => clearInterval(interval));

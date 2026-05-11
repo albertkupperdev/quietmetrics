@@ -48,12 +48,10 @@ export async function getGitHubRepos(userId: number) {
 export async function getActivityMetrics(userId: number) {
   const { kit, login } = await getOctokit(userId);
 
-  // 1. Commit cadence — count author's commits per week over last 12 weeks
   const reposRes = await kit.rest.repos.listForAuthenticatedUser({ sort: 'updated', per_page: 10 });
   const since = new Date();
-  since.setDate(since.getDate() - 84); // 12 weeks back
+  since.setDate(since.getDate() - 84);
 
-  // Build week buckets: index 0 = oldest, 11 = most recent
   const weekStart = (weeksAgo: number) => {
     const d = new Date();
     d.setDate(d.getDate() - weeksAgo * 7);
@@ -84,9 +82,7 @@ export async function getActivityMetrics(userId: number) {
             }
           }
         }
-      } catch {
-        // Skip inaccessible repos
-      }
+      } catch {}
     })
   );
 
@@ -95,7 +91,6 @@ export async function getActivityMetrics(userId: number) {
     commits: total,
   }));
 
-  // 2. PR cycle time and review latency — from last 20 merged PRs
   const prsRes = await kit.rest.search.issuesAndPullRequests({
     q: `author:${login} type:pr is:merged`,
     sort: 'updated',
@@ -111,9 +106,8 @@ export async function getActivityMetrics(userId: number) {
 
       const created = new Date(pr.created_at).getTime();
       const merged = new Date(pr.pull_request.merged_at).getTime();
-      cycleTimes.push((merged - created) / (1000 * 60 * 60)); // hours
+      cycleTimes.push((merged - created) / (1000 * 60 * 60));
 
-      // Extract owner/repo from the PR URL
       const match = pr.repository_url.match(/repos\/(.+?)\/(.+)$/);
       if (!match) return;
       const [, owner, repo] = match;
@@ -126,11 +120,9 @@ export async function getActivityMetrics(userId: number) {
         });
         if (reviews.length > 0 && reviews[0].submitted_at) {
           const firstReview = new Date(reviews[0].submitted_at).getTime();
-          reviewLatencies.push((firstReview - created) / (1000 * 60 * 60)); // hours
+          reviewLatencies.push((firstReview - created) / (1000 * 60 * 60));
         }
-      } catch {
-        // Skip if reviews can't be fetched
-      }
+      } catch {}
     })
   );
 
