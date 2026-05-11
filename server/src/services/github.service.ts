@@ -1,4 +1,4 @@
-import { Octokit } from 'octokit';
+import { Octokit } from '@octokit/rest';
 import { PrismaClient } from '../generated/prisma/client';
 
 const prisma = new PrismaClient();
