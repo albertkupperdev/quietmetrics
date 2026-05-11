@@ -6,11 +6,11 @@ const prisma = new PrismaClient();
 async function getOctokit(userId: number) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error('User not found');
-  return new Octokit({ auth: user.accessToken });
+  return { kit: new Octokit({ auth: user.accessToken }), login: user.login };
 }
 
 export async function getGitHubProfile(userId: number) {
-  const kit = await getOctokit(userId);
+  const { kit } = await getOctokit(userId);
   const { data } = await kit.rest.users.getAuthenticated();
 
   return {
@@ -25,7 +25,7 @@ export async function getGitHubProfile(userId: number) {
 }
 
 export async function getGitHubRepos(userId: number) {
-  const kit = await getOctokit(userId);
+  const { kit } = await getOctokit(userId);
   const { data } = await kit.rest.repos.listForAuthenticatedUser({
     sort: 'updated',
     per_page: 30,
@@ -43,4 +43,87 @@ export async function getGitHubRepos(userId: number) {
     updatedAt: repo.updated_at,
     url: repo.html_url,
   }));
+}
+
+export async function getActivityMetrics(userId: number) {
+  const { kit, login } = await getOctokit(userId);
+
+  // 1. Commit cadence — weekly commit counts for last 12 weeks across all repos
+  const reposRes = await kit.rest.repos.listForAuthenticatedUser({ sort: 'updated', per_page: 10 });
+  const weeklyTotals: number[] = new Array(12).fill(0);
+
+  await Promise.all(
+    reposRes.data.map(async (repo) => {
+      try {
+        const { data } = await kit.rest.repos.getCommitActivityStats({
+          owner: repo.owner.login,
+          repo: repo.name,
+        });
+        if (!Array.isArray(data)) return;
+        const last12 = data.slice(-12);
+        last12.forEach((week, i) => {
+          weeklyTotals[i] += week.total;
+        });
+      } catch {
+        // Some repos may not have stats yet — skip
+      }
+    })
+  );
+
+  const commitCadence = weeklyTotals.map((total, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (11 - i) * 7);
+    return {
+      week: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      commits: total,
+    };
+  });
+
+  // 2. PR cycle time and review latency — from last 20 merged PRs
+  const prsRes = await kit.rest.search.issuesAndPullRequests({
+    q: `author:${login} type:pr is:merged`,
+    sort: 'updated',
+    per_page: 20,
+  });
+
+  const cycleTimes: number[] = [];
+  const reviewLatencies: number[] = [];
+
+  await Promise.all(
+    prsRes.data.items.map(async (pr) => {
+      if (!pr.pull_request?.merged_at || !pr.created_at) return;
+
+      const created = new Date(pr.created_at).getTime();
+      const merged = new Date(pr.pull_request.merged_at).getTime();
+      cycleTimes.push((merged - created) / (1000 * 60 * 60)); // hours
+
+      // Extract owner/repo from the PR URL
+      const match = pr.repository_url.match(/repos\/(.+?)\/(.+)$/);
+      if (!match) return;
+      const [, owner, repo] = match;
+
+      try {
+        const { data: reviews } = await kit.rest.pulls.listReviews({
+          owner,
+          repo,
+          pull_number: pr.number,
+        });
+        if (reviews.length > 0 && reviews[0].submitted_at) {
+          const firstReview = new Date(reviews[0].submitted_at).getTime();
+          reviewLatencies.push((firstReview - created) / (1000 * 60 * 60)); // hours
+        }
+      } catch {
+        // Skip if reviews can't be fetched
+      }
+    })
+  );
+
+  const avg = (arr: number[]) =>
+    arr.length === 0 ? null : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+
+  return {
+    commitCadence,
+    avgCycleTimeHours: avg(cycleTimes),
+    avgReviewLatencyHours: avg(reviewLatencies),
+  };
 }

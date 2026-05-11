@@ -5,6 +5,8 @@ import api from '../api';
 import StatsBar from '../components/StatsBar';
 import LanguageChart from '../components/LanguageChart';
 import TopReposChart from '../components/TopReposChart';
+import CommitChart from '../components/CommitChart';
+import PrMetrics from '../components/PrMetrics';
 import { ProfileSkeleton, StatsSkeleton, RepoSkeleton } from '../components/Skeleton';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
@@ -32,10 +34,17 @@ interface Repo {
   url: string;
 }
 
+interface Activity {
+  commitCadence: { week: string; commits: number }[];
+  avgCycleTimeHours: number | null;
+  avgReviewLatencyHours: number | null;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<GitHubProfile | null>(null);
   const [repos, setRepos] = useState<Repo[]>([]);
+  const [activity, setActivity] = useState<Activity | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [search, setSearch] = useState('');
@@ -44,9 +53,10 @@ export default function Dashboard() {
   useEffect(() => {
     const socket = io(API_URL, { withCredentials: true });
 
-    socket.on('stats:update', (data: { profile: GitHubProfile; repos: Repo[] }) => {
+    socket.on('stats:update', (data: { profile: GitHubProfile; repos: Repo[]; activity: Activity }) => {
       setProfile(data.profile);
       setRepos(data.repos);
+      setActivity(data.activity);
       setLastUpdated(new Date());
       setLoading(false);
     });
@@ -115,6 +125,16 @@ export default function Dashboard() {
             <LanguageChart repos={repos} />
             <TopReposChart repos={repos} />
           </div>
+
+          {activity && (
+            <div className="activity-section">
+              <CommitChart data={activity.commitCadence} />
+              <PrMetrics
+                avgCycleTimeHours={activity.avgCycleTimeHours}
+                avgReviewLatencyHours={activity.avgReviewLatencyHours}
+              />
+            </div>
+          )}
 
           <div className="repos-section">
             <div className="repos-toolbar">

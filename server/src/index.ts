@@ -7,7 +7,7 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import authRouter from './routes/auth';
 import githubRouter from './routes/github';
-import { getGitHubProfile, getGitHubRepos } from './services/github.service';
+import { getGitHubProfile, getGitHubRepos, getActivityMetrics } from './services/github.service';
 
 const app = express();
 const server = http.createServer(app);
@@ -50,11 +50,12 @@ io.on('connection', (socket) => {
 
   async function pushStats() {
     try {
-      const [profile, repos] = await Promise.all([
+      const [profile, repos, activity] = await Promise.all([
         getGitHubProfile(userId),
         getGitHubRepos(userId),
+        getActivityMetrics(userId),
       ]);
-      socket.emit('stats:update', { profile, repos });
+      socket.emit('stats:update', { profile, repos, activity });
     } catch {
       // User token may have expired — don't crash the server
     }

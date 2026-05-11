@@ -287,6 +287,56 @@ a:hover { text-decoration: underline; }
   letter-spacing: 0.5px;
 }
 
+/* ── Activity ── */
+.activity-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.chart-card--wide {
+  width: 100%;
+}
+
+.pr-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pr-metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: var(--shadow);
+}
+
+.pr-metric-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.pr-metric-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pr-metric-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* ── Repos ── */
 .repos-section { }
 
