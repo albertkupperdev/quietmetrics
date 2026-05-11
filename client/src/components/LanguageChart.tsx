@@ -41,7 +41,7 @@ export default function LanguageChart({ repos }: Props) {
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip formatter={(value: number) => [`${value} repos`, '']} />
+          <Tooltip formatter={(value) => [`${value} repos`, '']} />
           <Legend iconType="circle" iconSize={8} />
         </PieChart>
       </ResponsiveContainer>
