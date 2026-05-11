@@ -48,36 +48,52 @@ export async function getGitHubRepos(userId: number) {
 export async function getActivityMetrics(userId: number) {
   const { kit, login } = await getOctokit(userId);
 
-  // 1. Commit cadence — weekly commit counts for last 12 weeks across all repos
+  // 1. Commit cadence — count author's commits per week over last 12 weeks
   const reposRes = await kit.rest.repos.listForAuthenticatedUser({ sort: 'updated', per_page: 10 });
+  const since = new Date();
+  since.setDate(since.getDate() - 84); // 12 weeks back
+
+  // Build week buckets: index 0 = oldest, 11 = most recent
+  const weekStart = (weeksAgo: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - weeksAgo * 7);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
   const weeklyTotals: number[] = new Array(12).fill(0);
 
   await Promise.all(
     reposRes.data.map(async (repo) => {
       try {
-        const { data } = await kit.rest.repos.getCommitActivityStats({
+        const { data: commits } = await kit.rest.repos.listCommits({
           owner: repo.owner.login,
           repo: repo.name,
+          author: login,
+          since: since.toISOString(),
+          per_page: 100,
         });
-        if (!Array.isArray(data)) return;
-        const last12 = data.slice(-12);
-        last12.forEach((week, i) => {
-          weeklyTotals[i] += week.total;
-        });
+        for (const commit of commits) {
+          const commitDate = new Date(commit.commit.author?.date ?? '');
+          for (let w = 0; w < 12; w++) {
+            const start = weekStart(11 - w);
+            const end = weekStart(10 - w);
+            if (commitDate >= start && commitDate < end) {
+              weeklyTotals[w]++;
+              break;
+            }
+          }
+        }
       } catch {
-        // Some repos may not have stats yet — skip
+        // Skip inaccessible repos
       }
     })
   );
 
-  const commitCadence = weeklyTotals.map((total, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (11 - i) * 7);
-    return {
-      week: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      commits: total,
-    };
-  });
+  const commitCadence = weeklyTotals.map((total, i) => ({
+    week: weekStart(11 - i).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    commits: total,
+  }));
 
   // 2. PR cycle time and review latency — from last 20 merged PRs
   const prsRes = await kit.rest.search.issuesAndPullRequests({
