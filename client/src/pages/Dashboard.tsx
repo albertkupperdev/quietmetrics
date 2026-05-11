@@ -1,6 +1,10 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import StatsBar from '../components/StatsBar';
+import LanguageChart from '../components/LanguageChart';
+import TopReposChart from '../components/TopReposChart';
+import { ProfileSkeleton, StatsSkeleton, RepoSkeleton } from '../components/Skeleton';
 
 interface GitHubProfile {
   login: string;
@@ -32,6 +36,8 @@ export default function Dashboard() {
   const [token, setToken] = useState('');
   const [connectError, setConnectError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<'updated' | 'stars' | 'forks'>('updated');
 
   useEffect(() => {
     async function load() {
@@ -43,7 +49,7 @@ export default function Dashboard() {
         setProfile(profileRes.data);
         setRepos(reposRes.data);
       } catch {
-        // GitHub not connected yet — show connect form
+        // GitHub not connected yet
       } finally {
         setLoading(false);
       }
@@ -78,7 +84,13 @@ export default function Dashboard() {
     navigate('/login');
   }
 
-  if (loading) return <p className="loading">Loading...</p>;
+  const filteredRepos = repos
+    .filter((r) => r.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (sort === 'stars') return b.stars - a.stars;
+      if (sort === 'forks') return b.forks - a.forks;
+      return new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime();
+    });
 
   return (
     <div className="dashboard">
@@ -87,10 +99,20 @@ export default function Dashboard() {
         <button onClick={handleLogout} className="logout-btn">Log out</button>
       </header>
 
-      {!profile ? (
+      {loading ? (
+        <>
+          <ProfileSkeleton />
+          <StatsSkeleton />
+          <div className="repo-list">
+            {[1, 2, 3].map((i) => <RepoSkeleton key={i} />)}
+          </div>
+        </>
+      ) : !profile ? (
         <div className="connect-section">
           <h2>Connect your GitHub account</h2>
-          <p>Generate a <a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer">personal access token</a> with <code>repo</code> and <code>read:user</code> scopes.</p>
+          <p>
+            Generate a <a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer">personal access token</a> with <code>repo</code> and <code>read:user</code> scopes.
+          </p>
           <form onSubmit={handleConnect} className="connect-form">
             {connectError && <p className="error">{connectError}</p>}
             <input
@@ -107,11 +129,11 @@ export default function Dashboard() {
         <>
           <div className="profile-card">
             <img src={profile.avatarUrl} alt={profile.login} className="avatar" />
-            <div>
+            <div className="profile-info">
               <h2>{profile.name ?? profile.login}</h2>
               <p className="login">@{profile.login}</p>
               {profile.bio && <p className="bio">{profile.bio}</p>}
-              <div className="stats">
+              <div className="profile-stats">
                 <span><strong>{profile.publicRepos}</strong> repos</span>
                 <span><strong>{profile.followers}</strong> followers</span>
                 <span><strong>{profile.following}</strong> following</span>
@@ -119,28 +141,61 @@ export default function Dashboard() {
             </div>
           </div>
 
+          <StatsBar publicRepos={profile.publicRepos} repos={repos} />
+
+          <div className="charts-grid">
+            <LanguageChart repos={repos} />
+            <TopReposChart repos={repos} />
+          </div>
+
           <div className="repos-section">
-            <h2>Repositories</h2>
-            <ul className="repo-list">
-              {repos.map((repo) => (
-                <li key={repo.id} className="repo-card">
-                  <div className="repo-header">
-                    <a href={repo.url} target="_blank" rel="noreferrer" className="repo-name">
-                      {repo.name}
-                    </a>
-                    <span className={`badge ${repo.private ? 'private' : 'public'}`}>
-                      {repo.private ? 'Private' : 'Public'}
-                    </span>
-                  </div>
-                  {repo.description && <p className="repo-desc">{repo.description}</p>}
-                  <div className="repo-meta">
-                    {repo.language && <span className="language">{repo.language}</span>}
-                    <span>★ {repo.stars}</span>
-                    <span>⑂ {repo.forks}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="repos-toolbar">
+              <h2>Repositories <span className="repo-count">{filteredRepos.length}</span></h2>
+              <div className="repos-controls">
+                <input
+                  type="text"
+                  placeholder="Search repos..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="search-input"
+                />
+                <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="sort-select">
+                  <option value="updated">Recently updated</option>
+                  <option value="stars">Most stars</option>
+                  <option value="forks">Most forks</option>
+                </select>
+              </div>
+            </div>
+
+            {filteredRepos.length === 0 ? (
+              <p className="empty">No repositories match your search.</p>
+            ) : (
+              <ul className="repo-list">
+                {filteredRepos.map((repo) => (
+                  <li key={repo.id} className="repo-card">
+                    <div className="repo-header">
+                      <a href={repo.url} target="_blank" rel="noreferrer" className="repo-name">
+                        {repo.name}
+                      </a>
+                      <span className={`badge ${repo.private ? 'private' : 'public'}`}>
+                        {repo.private ? 'Private' : 'Public'}
+                      </span>
+                    </div>
+                    {repo.description && <p className="repo-desc">{repo.description}</p>}
+                    <div className="repo-meta">
+                      {repo.language && <span className="language">{repo.language}</span>}
+                      <span>★ {repo.stars}</span>
+                      <span>⑂ {repo.forks}</span>
+                      {repo.updatedAt && (
+                        <span className="updated">
+                          Updated {new Date(repo.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </>
       )}
