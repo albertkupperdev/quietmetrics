@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import StatsBar from '../components/StatsBar';
@@ -33,8 +33,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<GitHubProfile | null>(null);
   const [repos, setRepos] = useState<Repo[]>([]);
-  const [token, setToken] = useState('');
-  const [connectError, setConnectError] = useState('');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'updated' | 'stars' | 'forks'>('updated');
@@ -49,39 +47,17 @@ export default function Dashboard() {
         setProfile(profileRes.data);
         setRepos(reposRes.data);
       } catch {
-        // GitHub not connected yet
+        navigate('/');
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
-
-  async function handleConnect(e: FormEvent) {
-    e.preventDefault();
-    setConnectError('');
-    try {
-      await api.post('/github/connect', { accessToken: token });
-      const [profileRes, reposRes] = await Promise.all([
-        api.get('/github/profile'),
-        api.get('/github/repos'),
-      ]);
-      setProfile(profileRes.data);
-      setRepos(reposRes.data);
-      setToken('');
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        const res = (err as { response: { data: { error: string } } }).response;
-        setConnectError(res.data.error ?? 'Failed to connect');
-      } else {
-        setConnectError('Failed to connect');
-      }
-    }
-  }
+  }, [navigate]);
 
   async function handleLogout() {
     await api.post('/auth/logout').catch(() => {});
-    navigate('/login');
+    navigate('/');
   }
 
   const filteredRepos = repos
@@ -107,25 +83,7 @@ export default function Dashboard() {
             {[1, 2, 3].map((i) => <RepoSkeleton key={i} />)}
           </div>
         </>
-      ) : !profile ? (
-        <div className="connect-section">
-          <h2>Connect your GitHub account</h2>
-          <p>
-            Generate a <a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer">personal access token</a> with <code>repo</code> and <code>read:user</code> scopes.
-          </p>
-          <form onSubmit={handleConnect} className="connect-form">
-            {connectError && <p className="error">{connectError}</p>}
-            <input
-              type="password"
-              placeholder="ghp_..."
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              required
-            />
-            <button type="submit">Connect</button>
-          </form>
-        </div>
-      ) : (
+      ) : profile && (
         <>
           <div className="profile-card">
             <img src={profile.avatarUrl} alt={profile.login} className="avatar" />

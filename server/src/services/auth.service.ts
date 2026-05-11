@@ -1,9 +1,8 @@
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { Octokit } from '@octokit/rest';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const SALT_ROUNDS = 10;
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -11,32 +10,35 @@ function getJwtSecret(): string {
   return secret;
 }
 
-export async function registerUser(email: string, password: string) {
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    throw new Error('Email already in use');
-  }
+export async function exchangeCodeForToken(code: string): Promise<string> {
+  const response = await fetch('https://github.com/login/oauth/access_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      client_id: process.env.GITHUB_CLIENT_ID,
+      client_secret: process.env.GITHUB_CLIENT_SECRET,
+      code,
+    }),
+  });
 
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = await prisma.user.create({
-    data: { email, passwordHash },
-    select: { id: true, email: true, createdAt: true },
+  const data = await response.json() as { access_token?: string; error?: string };
+  if (!data.access_token) throw new Error(data.error ?? 'Failed to exchange code for token');
+  return data.access_token;
+}
+
+export async function upsertUser(accessToken: string) {
+  const octokit = new Octokit({ auth: accessToken });
+  const { data } = await octokit.rest.users.getAuthenticated();
+
+  const user = await prisma.user.upsert({
+    where: { githubId: data.id },
+    update: { accessToken, login: data.login, name: data.name ?? null, avatarUrl: data.avatar_url },
+    create: { githubId: data.id, login: data.login, name: data.name ?? null, avatarUrl: data.avatar_url, accessToken },
   });
 
   return user;
 }
 
-export async function loginUser(email: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    throw new Error('Invalid email or password');
-  }
-
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) {
-    throw new Error('Invalid email or password');
-  }
-
-  const token = jwt.sign({ userId: user.id }, getJwtSecret(), { expiresIn: '7d' });
-  return { token, user: { id: user.id, email: user.email, createdAt: user.createdAt } };
+export function createJwt(userId: number): string {
+  return jwt.sign({ userId }, getJwtSecret(), { expiresIn: '7d' });
 }

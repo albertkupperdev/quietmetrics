@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { registerUser, loginUser } from '../services/auth.service';
+import { exchangeCodeForToken, upsertUser, createJwt } from '../services/auth.service';
 
 const router = Router();
 
 const isProd = process.env.NODE_ENV === 'production';
+const CLIENT_URL = process.env.CLIENT_URL ?? 'http://localhost:5173';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -12,38 +13,31 @@ const COOKIE_OPTIONS = {
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
-router.post('/register', async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    res.status(400).json({ error: 'Email and password are required' });
-    return;
-  }
-
-  try {
-    const user = await registerUser(email, password);
-    res.status(201).json({ user });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Registration failed';
-    res.status(400).json({ error: message });
-  }
+router.get('/github', (_req: Request, res: Response) => {
+  const params = new URLSearchParams({
+    client_id: process.env.GITHUB_CLIENT_ID ?? '',
+    scope: 'read:user repo',
+  });
+  res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 });
 
-router.post('/login', async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+router.get('/github/callback', async (req: Request, res: Response) => {
+  const code = req.query.code as string;
 
-  if (!email || !password) {
-    res.status(400).json({ error: 'Email and password are required' });
+  if (!code) {
+    res.redirect(`${CLIENT_URL}?error=missing_code`);
     return;
   }
 
   try {
-    const { token, user } = await loginUser(email, password);
+    const accessToken = await exchangeCodeForToken(code);
+    const user = await upsertUser(accessToken);
+    const token = createJwt(user.id);
     res.cookie('token', token, COOKIE_OPTIONS);
-    res.json({ user });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Login failed';
-    res.status(401).json({ error: message });
+    res.redirect(`${CLIENT_URL}/dashboard`);
+  } catch (err) {
+    console.error('OAuth callback error:', err);
+    res.redirect(`${CLIENT_URL}?error=oauth_failed`);
   }
 });
 

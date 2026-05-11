@@ -3,28 +3,15 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-function octokit(accessToken: string) {
-  return new Octokit({ auth: accessToken });
-}
-
-export async function connectGitHub(userId: number, accessToken: string) {
-  const kit = octokit(accessToken);
-  const { data } = await kit.rest.users.getAuthenticated();
-
-  await prisma.gitHubAccount.upsert({
-    where: { userId },
-    update: { accessToken, githubId: data.id, login: data.login },
-    create: { accessToken, githubId: data.id, login: data.login, userId },
-  });
-
-  return { login: data.login, avatarUrl: data.avatar_url };
+async function getOctokit(userId: number) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error('User not found');
+  return new Octokit({ auth: user.accessToken });
 }
 
 export async function getGitHubProfile(userId: number) {
-  const account = await prisma.gitHubAccount.findUnique({ where: { userId } });
-  if (!account) throw new Error('No GitHub account connected');
-
-  const { data } = await octokit(account.accessToken).rest.users.getAuthenticated();
+  const kit = await getOctokit(userId);
+  const { data } = await kit.rest.users.getAuthenticated();
 
   return {
     login: data.login,
@@ -38,10 +25,8 @@ export async function getGitHubProfile(userId: number) {
 }
 
 export async function getGitHubRepos(userId: number) {
-  const account = await prisma.gitHubAccount.findUnique({ where: { userId } });
-  if (!account) throw new Error('No GitHub account connected');
-
-  const { data } = await octokit(account.accessToken).rest.repos.listForAuthenticatedUser({
+  const kit = await getOctokit(userId);
+  const { data } = await kit.rest.repos.listForAuthenticatedUser({
     sort: 'updated',
     per_page: 30,
   });
