@@ -1,17 +1,6 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export default function Login() {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('error')) {
-      // OAuth failed — stay on page, error shown below
-    }
-  }, []);
 
   const error = new URLSearchParams(window.location.search).get('error');
 
