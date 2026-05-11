@@ -45,9 +45,9 @@ devmetrics/
 - [x] Auth routes: POST /auth/register and POST /auth/login
 - [x] Auth middleware (verify JWT from cookie)
 - [x] GitHub routes: POST /github/connect, GET /github/profile, GET /github/repos
-- [ ] Frontend: login/register pages
-- [ ] Frontend: protected dashboard page
-- [ ] Frontend: repo list and stats display
+- [x] Frontend: login/register pages
+- [x] Frontend: protected dashboard page
+- [x] Frontend: repo list and stats display
 
 ## Database Schema (current)
 - **User**: id, email, passwordHash, createdAt
