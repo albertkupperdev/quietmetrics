@@ -1,4 +1,4 @@
-# DevMetrics
+# QuietMetrics
 
 A full-stack developer dashboard that connects to the GitHub API and displays repository metrics and profile stats. Built as a portfolio project to demonstrate end-to-end web development skills.
 
@@ -22,7 +22,7 @@ A full-stack developer dashboard that connects to the GitHub API and displays re
 ## Project Structure
 
 ```
-devmetrics/
+quietmetrics/
 ├── client/       # React + Vite frontend
 └── server/       # Express + Prisma backend
 ```
@@ -33,8 +33,8 @@ devmetrics/
 
 **1. Clone the repo**
 ```bash
-git clone https://github.com/albertkupperdev/devmetrics.git
-cd devmetrics
+git clone https://github.com/albertkupperdev/quietmetrics.git
+cd quietmetrics
 ```
 
 **2. Install dependencies**

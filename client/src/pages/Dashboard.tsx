@@ -84,7 +84,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>DevMetrics</h1>
+        <h1>QuietMetrics</h1>
         <div className="header-right">
           {lastUpdated && (
             <span className="last-updated">

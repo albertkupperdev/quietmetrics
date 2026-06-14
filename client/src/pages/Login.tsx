@@ -7,7 +7,7 @@ export default function Login() {
   return (
     <div className="auth-container">
       <div className="auth-hero">
-        <h1>DevMetrics</h1>
+        <h1>QuietMetrics</h1>
         <p className="auth-tagline">A quiet dashboard for your code</p>
         {error && <p className="error">Authentication failed. Please try again.</p>}
         <a href={`${API_URL}/auth/github`} className="github-btn">
