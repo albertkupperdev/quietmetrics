@@ -1,8 +1,31 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../api';
+
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 export default function Login() {
+  const navigate = useNavigate();
+  const [demoLoading, setDemoLoading] = useState(false);
 
   const error = new URLSearchParams(window.location.search).get('error');
+  const autoDemo = new URLSearchParams(window.location.search).get('demo') === '1';
+
+  const handleDemo = useCallback(async () => {
+    setDemoLoading(true);
+    try {
+      await api.post('/auth/demo');
+      navigate('/dashboard');
+    } catch {
+      setDemoLoading(false);
+    }
+  }, [navigate]);
+
+  // Lets the portfolio's "Try as Guest" link land straight in the dashboard with ?demo=1
+  useEffect(() => {
+    if (autoDemo) handleDemo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="auth-container">
@@ -16,6 +39,9 @@ export default function Login() {
           </svg>
           Continue with GitHub
         </a>
+        <button type="button" className="github-btn" onClick={handleDemo} disabled={demoLoading}>
+          {demoLoading ? 'Setting up demo…' : 'Try it as a guest — no signup needed'}
+        </button>
       </div>
     </div>
   );

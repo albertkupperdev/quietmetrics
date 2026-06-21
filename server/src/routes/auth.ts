@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { exchangeCodeForToken, upsertUser, createJwt } from '../services/auth.service';
+import { exchangeCodeForToken, upsertUser, createJwt, getOrCreateDemoUser } from '../services/auth.service';
 
 const router = Router();
 
@@ -38,6 +38,18 @@ router.get('/github/callback', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('OAuth callback error:', err);
     res.redirect(`${CLIENT_URL}?error=oauth_failed`);
+  }
+});
+
+router.post('/demo', async (_req: Request, res: Response) => {
+  try {
+    const user = await getOrCreateDemoUser();
+    const token = createJwt(user.id);
+    res.cookie('token', token, COOKIE_OPTIONS);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Demo login error:', err);
+    res.status(500).json({ error: 'Could not start demo session' });
   }
 });
 

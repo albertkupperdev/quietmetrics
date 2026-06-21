@@ -1,16 +1,19 @@
 import { Octokit } from '@octokit/rest';
 import { PrismaClient } from '@prisma/client';
+import { DEMO_GITHUB_ID, demoProfile, demoRepos, getDemoActivity } from '../data/demo-data';
 
 const prisma = new PrismaClient();
 
 async function getOctokit(userId: number) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error('User not found');
-  return { kit: new Octokit({ auth: user.accessToken }), login: user.login };
+  return { kit: new Octokit({ auth: user.accessToken }), login: user.login, githubId: user.githubId };
 }
 
 export async function getGitHubProfile(userId: number) {
-  const { kit } = await getOctokit(userId);
+  const { kit, githubId } = await getOctokit(userId);
+  if (githubId === DEMO_GITHUB_ID) return demoProfile;
+
   const { data } = await kit.rest.users.getAuthenticated();
 
   return {
@@ -25,7 +28,9 @@ export async function getGitHubProfile(userId: number) {
 }
 
 export async function getGitHubRepos(userId: number) {
-  const { kit } = await getOctokit(userId);
+  const { kit, githubId } = await getOctokit(userId);
+  if (githubId === DEMO_GITHUB_ID) return demoRepos;
+
   const { data } = await kit.rest.repos.listForAuthenticatedUser({
     sort: 'updated',
     per_page: 30,
@@ -46,7 +51,8 @@ export async function getGitHubRepos(userId: number) {
 }
 
 export async function getActivityMetrics(userId: number) {
-  const { kit, login } = await getOctokit(userId);
+  const { kit, login, githubId } = await getOctokit(userId);
+  if (githubId === DEMO_GITHUB_ID) return getDemoActivity();
 
   const reposRes = await kit.rest.repos.listForAuthenticatedUser({ sort: 'updated', per_page: 10 });
   const since = new Date();

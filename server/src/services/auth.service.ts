@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { Octokit } from '@octokit/rest';
 import { PrismaClient } from '@prisma/client';
+import { DEMO_GITHUB_ID, demoProfile } from '../data/demo-data';
 
 const prisma = new PrismaClient();
 
@@ -37,6 +38,20 @@ export async function upsertUser(accessToken: string) {
   });
 
   return user;
+}
+
+export async function getOrCreateDemoUser() {
+  return prisma.user.upsert({
+    where: { githubId: DEMO_GITHUB_ID },
+    update: {},
+    create: {
+      githubId: DEMO_GITHUB_ID,
+      login: demoProfile.login,
+      name: demoProfile.name,
+      avatarUrl: demoProfile.avatarUrl,
+      accessToken: 'demo',
+    },
+  });
 }
 
 export function createJwt(userId: number): string {
