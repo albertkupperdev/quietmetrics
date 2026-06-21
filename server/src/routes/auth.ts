@@ -41,15 +41,15 @@ router.get('/github/callback', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/demo', async (_req: Request, res: Response) => {
+router.get('/demo', async (_req: Request, res: Response) => {
   try {
     const user = await getOrCreateDemoUser();
     const token = createJwt(user.id);
     res.cookie('token', token, COOKIE_OPTIONS);
-    res.json({ ok: true });
+    res.redirect(`${CLIENT_URL}/dashboard`);
   } catch (err) {
     console.error('Demo login error:', err);
-    res.status(500).json({ error: 'Could not start demo session' });
+    res.redirect(`${CLIENT_URL}?error=demo_failed`);
   }
 });
 
