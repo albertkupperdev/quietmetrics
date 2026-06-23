@@ -4,8 +4,9 @@ A full-stack developer dashboard that connects to the GitHub API and displays re
 
 ## Features
 
+- GitHub OAuth login — connect your account in one click, no manual tokens
 - JWT authentication with secure httpOnly cookies
-- GitHub account integration via personal access token
+- Live stats pushed over Socket.IO — no client-side polling
 - Repository list with language, stars, and fork counts
 - GitHub profile display (avatar, bio, follower stats)
 
@@ -16,7 +17,8 @@ A full-stack developer dashboard that connects to the GitHub API and displays re
 | Frontend | React, TypeScript, Vite, React Router |
 | Backend | Node.js, Express, TypeScript |
 | Database | PostgreSQL, Prisma ORM |
-| Auth | JWT in httpOnly cookies |
+| Auth | GitHub OAuth, JWT in httpOnly cookies |
+| Real-time | Socket.IO |
 | GitHub | GitHub REST API via Octokit |
 
 ## Project Structure
@@ -44,10 +46,12 @@ npm install
 
 **3. Configure the backend**
 
-Create `server/.env`:
+Create a GitHub OAuth App at https://github.com/settings/developers with callback URL `http://localhost:3000/auth/github/callback`, then create `server/.env`:
 ```
 DATABASE_URL="postgresql://user:password@localhost:5432/devmetrics"
 JWT_SECRET="your-secret-key"
+GITHUB_CLIENT_ID="your-github-oauth-app-client-id"
+GITHUB_CLIENT_SECRET="your-github-oauth-app-client-secret"
 PORT=3000
 ```
 
